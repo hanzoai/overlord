@@ -1,8 +1,8 @@
 # Default target
-all: install run
+all: install-all test run
 	@echo "$(GREEN)All tasks completed.$(RESET)"
 
-.PHONY: all install install-dev install-gui reinstall uninstall test lint format clean venv venv-check pytest-check help check-dependencies check-system check-python check-uv run cli
+.PHONY: all install install-all install-dev install-test reinstall uninstall test lint format clean venv venv-check pytest-check help check-dependencies check-system check-python check-uv run cli install-autogui install-tweening build-package publish
 
 # ANSI color codes
 GREEN=$(shell tput -Txterm setaf 2)
@@ -103,6 +103,20 @@ pytest-check: venv-check
 		echo "$(BLUE)pytest already installed.$(RESET)"; \
 	fi
 
+# Install tweening package from local repository
+install-tweening: venv-check
+	@echo "$(YELLOW)Installing hanzo-pytweening from local repository...$(RESET)"
+	cd ../tweening && $(ACTIVATE_CMD) /Users/z/work/hanzo/mac-use/$(VENV_ACTIVATE) && $(PACKAGE_CMD) -e .
+	@echo "$(GREEN)hanzo-pytweening installed.$(RESET)"
+
+# Install autogui package from local repository
+install-autogui: venv-check install-tweening
+	@echo "$(YELLOW)Installing hanzo-autogui from local repository...$(RESET)"
+	cd ../autogui && $(ACTIVATE_CMD) /Users/z/work/hanzo/mac-use/$(VENV_ACTIVATE) && $(PACKAGE_CMD) -e .
+	@echo "$(GREEN)hanzo-autogui installed.$(RESET)"
+
+install-all: venv-check install-autogui install
+
 install: venv-check
 	@echo "$(YELLOW)Installing dependencies...$(RESET)"
 	@$(ACTIVATE_CMD) $(VENV_ACTIVATE) && $(PACKAGE_CMD) -e . || { \
@@ -119,10 +133,13 @@ install-dev: venv-check
 	}
 	@echo "$(GREEN)Development dependencies installed.$(RESET)"
 
-install-gui: venv-check
-	@echo "$(YELLOW)Installing GUI automation dependencies...$(RESET)"
-	$(ACTIVATE_CMD) $(VENV_ACTIVATE) && python mac_use/install_dependencies.py
-	@echo "$(GREEN)GUI automation dependencies installed.$(RESET)"
+install-test: venv-check install-autogui
+	@echo "$(YELLOW)Installing test dependencies...$(RESET)"
+	@$(ACTIVATE_CMD) $(VENV_ACTIVATE) && $(PACKAGE_CMD) -e ".[dev]" || { \
+		echo "$(YELLOW)Installation with $(PACKAGE_CMD) failed. Trying with pip...$(RESET)"; \
+		$(ACTIVATE_CMD) $(VENV_ACTIVATE) && pip install -e ".[dev]"; \
+	}
+	@echo "$(GREEN)Test dependencies installed.$(RESET)"
 
 uninstall: venv-check
 	@echo "$(YELLOW)Removing virtual environment...$(RESET)"
@@ -133,27 +150,27 @@ reinstall: uninstall venv install
 
 test: pytest-check
 	@echo "$(YELLOW)Running tests...$(RESET)"
-	$(ACTIVATE_CMD) $(VENV_ACTIVATE) && python -m pytest || true
+	$(ACTIVATE_CMD) $(VENV_ACTIVATE) && python -m pytest
 	@echo "$(GREEN)Tests complete.$(RESET)"
 
 lint: pytest-check
 	@echo "$(YELLOW)Running linters...$(RESET)"
-	$(ACTIVATE_CMD) $(VENV_ACTIVATE) && ruff check . || true
+	$(ACTIVATE_CMD) $(VENV_ACTIVATE) && ruff check .
 	@echo "$(GREEN)Linting complete.$(RESET)"
 
 format: pytest-check
 	@echo "$(YELLOW)Formatting code...$(RESET)"
-	$(ACTIVATE_CMD) $(VENV_ACTIVATE) && ruff format . || true
+	$(ACTIVATE_CMD) $(VENV_ACTIVATE) && ruff format .
 	@echo "$(GREEN)Formatting complete.$(RESET)"
 
 run: venv-check
 	@echo "$(YELLOW)Running streamlit app...$(RESET)"
-	$(ACTIVATE_CMD) $(VENV_ACTIVATE) && streamlit run mac_use/streamlit.py
+	uv run mac_use/app.py
 	@echo "$(GREEN)App stopped.$(RESET)"
 
 cli: venv-check
 	@echo "$(YELLOW)Running mac-use CLI...$(RESET)"
-	$(ACTIVATE_CMD) $(VENV_ACTIVATE) && mac-use
+	uv run mac_use/cli.py
 	@echo "$(GREEN)CLI command completed.$(RESET)"
 
 clean:
@@ -162,22 +179,43 @@ clean:
 	find . -name "__pycache__" -type d -exec rm -rf {} +
 	@echo "$(GREEN)Caches cleaned.$(RESET)"
 
+# Build Python package distribution
+build-package: install-all test
+	@echo "$(YELLOW)Building package...$(RESET)"
+	$(ACTIVATE_CMD) $(VENV_ACTIVATE) && $(PACKAGE_CMD) build || $(ACTIVATE_CMD) $(VENV_ACTIVATE) && pip install build
+	$(ACTIVATE_CMD) $(VENV_ACTIVATE) && python -m build
+	@echo "$(GREEN)Package built. Distribution files are in 'dist/'$(RESET)"
+
+# Publish package to PyPI
+publish: build-package
+	@echo "$(YELLOW)Publishing package to PyPI...$(RESET)"
+	@read -p "Are you sure you want to publish to PyPI? [y/N] " answer && [[ $$answer == [yY] ]]
+	$(ACTIVATE_CMD) $(VENV_ACTIVATE) && $(PACKAGE_CMD) twine || $(ACTIVATE_CMD) $(VENV_ACTIVATE) && pip install twine
+	$(ACTIVATE_CMD) $(VENV_ACTIVATE) && twine upload dist/*
+	@echo "$(GREEN)Package published to PyPI.$(RESET)"
+
 # Help target
 help:
 	@echo "$(BLUE)Usage: make [target]$(RESET)"
 	@echo "Targets:"
-	@echo "  $(GREEN)all$(RESET)                 - Install dependencies and run the app"
-	@echo "  $(GREEN)install$(RESET)             - Install dependencies"
-	@echo "  $(GREEN)install-dev$(RESET)         - Install development dependencies
-	@echo "  $(GREEN)install-gui$(RESET)         - Install GUI automation dependencies"
+	@echo "  $(GREEN)all$(RESET)                 - Install dependencies, run tests, and start the app"
+	@echo "  $(GREEN)install$(RESET)             - Install dependencies (including local hanzo-autogui and hanzo-pytweening)"
+	@echo "  $(GREEN)install-autogui$(RESET)     - Install hanzo-autogui from local repository"
+	@echo "  $(GREEN)install-tweening$(RESET)    - Install hanzo-pytweening from local repository"
+	@echo "  $(GREEN)install-dev$(RESET)         - Install development dependencies"
+	@echo "  $(GREEN)install-test$(RESET)        - Install test dependencies"
 	@echo "  $(GREEN)uninstall$(RESET)           - Remove virtual environment"
 	@echo "  $(GREEN)reinstall$(RESET)           - Recreate virtual environment and reinstall dependencies"
 	@echo "  $(GREEN)test$(RESET)                - Run tests (installs dev dependencies if needed)"
 	@echo "  $(GREEN)lint$(RESET)                - Run linting (installs dev dependencies if needed)"
 	@echo "  $(GREEN)format$(RESET)              - Format code (installs dev dependencies if needed)"
 	@echo "  $(GREEN)run$(RESET)                 - Run streamlit app"
+	@echo "  $(GREEN)cli$(RESET)                 - Run the mac-use CLI command"
 	@echo "  $(GREEN)clean$(RESET)               - Clean cache files"
+	@echo "  $(GREEN)build-package$(RESET)       - Build Python package distribution"
+	@echo "  $(GREEN)publish$(RESET)             - Publish package to PyPI"
 	@echo "  $(GREEN)venv$(RESET)                - Create virtual environment"
 	@echo "  $(GREEN)check-dependencies$(RESET)  - Check system dependencies"
-	@echo "  $(GREEN)help$(RESET)                - Show this help message
-	@echo "  $(GREEN)cli$(RESET)                 - Run the mac-use CLI command"
+	@echo "  $(GREEN)check-python$(RESET)        - Check Python installation"
+	@echo "  $(GREEN)check-uv$(RESET)            - Check uv installation"
+	@echo "  $(GREEN)help$(RESET)                - Show this help message"

@@ -2,7 +2,6 @@ import asyncio
 import base64
 import os
 import shlex
-import pyautogui
 import keyboard
 from enum import StrEnum
 from pathlib import Path
@@ -10,6 +9,10 @@ from typing import Literal, TypedDict
 from uuid import uuid4
 
 from anthropic.types.beta import BetaToolComputerUse20241022Param
+
+# Import our asyncio-compatible GUI automation module
+from .async_gui import get_screen_size, move_mouse, click_mouse, double_click, \
+    drag_mouse, type_text, press_key, take_screenshot, get_cursor_position
 
 from .base import BaseAnthropicTool, ToolError, ToolResult
 from .run import run
@@ -93,10 +96,20 @@ class ComputerTool(BaseAnthropicTool):
     def __init__(self):
         super().__init__()
 
-        self.width, self.height = pyautogui.size()
-        assert self.width and self.height, "WIDTH, HEIGHT must be set"
+        # We'll get the screen size when needed asynchronously
+        # This avoids blocking during initialization
+        self.width, self.height = 1366, 768  # Default values, will be updated
         self.display_num = None  # macOS doesn't use X11 display numbers
+        
+        # Flag to indicate whether screen size has been initialized
+        self._initialized = False
 
+    async def _ensure_initialized(self):
+        """Ensure screen size is initialized asynchronously"""
+        if not self._initialized:
+            self.width, self.height = await get_screen_size()
+            self._initialized = True
+            
     async def __call__(
         self,
         *,
@@ -105,6 +118,7 @@ class ComputerTool(BaseAnthropicTool):
         coordinate: tuple[int, int] | None = None,
         **kwargs,
     ):
+        await self._ensure_initialized()
         print("Action: ", action, text, coordinate)
         if action in ("mouse_move", "left_click_drag"):
             if coordinate is None:
@@ -119,9 +133,13 @@ class ComputerTool(BaseAnthropicTool):
             x, y = self.scale_coordinates(ScalingSource.API, coordinate[0], coordinate[1])
 
             if action == "mouse_move":
-                return await self.shell(f"cliclick m:{x},{y}")
+                await move_mouse(x, y)
+                return ToolResult(output=f"Moved mouse to {x},{y}", error=None, base64_image=None)
             elif action == "left_click_drag":
-                return await self.shell(f"cliclick dd:{x},{y}")
+                # Get current position first
+                curr_x, curr_y = await get_cursor_position()
+                await drag_mouse(curr_x, curr_y, x, y)
+                return ToolResult(output=f"Dragged mouse from {curr_x},{curr_y} to {x},{y}", error=None, base64_image=None)
 
         if action in ("key", "type"):
             if text is None:
@@ -132,53 +150,23 @@ class ComputerTool(BaseAnthropicTool):
                 raise ToolError(output=f"{text} must be a string")
 
             if action == "key":
-                # Convert common key names to pyautogui format
-                key_map = {
-                    "Return": "enter",
-                    "space": "space",
-                    "Tab": "tab",
-                    "Left": "left",
-                    "Right": "right",
-                    "Up": "up",
-                    "Down": "down",
-                    "Escape": "esc",
-                    "command": "command",
-                    "cmd": "command",
-                    "alt": "alt",
-                    "shift": "shift",
-                    "ctrl": "ctrl"
-                }
-
                 try:
-                    if "+" in text:
-                        # Handle combinations like "ctrl+c"
-                        keys = text.split("+")
-                        mapped_keys = [key_map.get(k.strip(), k.strip()) for k in keys]
-                        await asyncio.get_event_loop().run_in_executor(
-                            None, keyboard.press_and_release, '+'.join(mapped_keys)
-                        )
-                    else:
-                        # Handle single keys
-                        mapped_key = key_map.get(text, text)
-                        await asyncio.get_event_loop().run_in_executor(
-                            None, keyboard.press_and_release, mapped_key
-                        )
-
+                    await press_key(text)
                     return ToolResult(output=f"Pressed key: {text}", error=None, base64_image=None)
-
                 except Exception as e:
                     return ToolResult(output=None, error=str(e), base64_image=None)
             elif action == "type":
-                results: list[ToolResult] = []
-                for chunk in chunks(text, TYPING_GROUP_SIZE):
-                    cmd = f"cliclick w:{TYPING_DELAY_MS} t:{shlex.quote(chunk)}"
-                    results.append(await self.shell(cmd, take_screenshot=False))
-                screenshot_base64 = (await self.screenshot()).base64_image
-                return ToolResult(
-                    output="".join(result.output or "" for result in results),
-                    error="".join(result.error or "" for result in results),
-                    base64_image=screenshot_base64,
-                )
+                try:
+                    await type_text(text, TYPING_DELAY_MS)
+                    # Take a screenshot after typing
+                    screenshot_result = await self.screenshot()
+                    return ToolResult(
+                        output=f"Typed: {text}",
+                        error=None,
+                        base64_image=screenshot_result.base64_image
+                    )
+                except Exception as e:
+                    return ToolResult(output=None, error=str(e), base64_image=None)
 
         if action in (
             "left_click",
@@ -190,30 +178,35 @@ class ComputerTool(BaseAnthropicTool):
         ):
             if text is not None:
                 raise ToolError(f"text is not accepted for {action}")
-            if coordinate is not None:
-                raise ToolError(f"coordinate is not accepted for {action}")
 
             if action == "screenshot":
                 return await self.screenshot()
             elif action == "cursor_position":
-                result = await self.shell(
-                    "cliclick p",
-                    take_screenshot=False,
-                )
-                import pdb; pdb.set_trace()
-                if result.output:
-                    x, y = map(int, result.output.strip().split(","))
-                    x, y = self.scale_coordinates(ScalingSource.COMPUTER, x, y)
-                    return result.replace(output=f"X={x},Y={y}")
-                return result
+                x, y = await get_cursor_position()
+                # Scale coordinates if needed
+                x, y = self.scale_coordinates(ScalingSource.COMPUTER, x, y)
+                return ToolResult(output=f"X={x},Y={y}", error=None, base64_image=None)
             else:
-                click_cmd = {
-                    "left_click": "c:.",
-                    "right_click": "rc:.",
-                    "middle_click": "mc:.",
-                    "double_click": "dc:.",
-                }[action]
-                return await self.shell(f"cliclick {click_cmd}")
+                # Handle mouse clicks
+                try:
+                    if action == "left_click":
+                        await click_mouse(button="left")
+                    elif action == "right_click":
+                        await click_mouse(button="right")
+                    elif action == "middle_click":
+                        await click_mouse(button="middle")
+                    elif action == "double_click":
+                        await double_click()
+                    
+                    # Take a screenshot after the action
+                    screenshot_result = await self.screenshot()
+                    return ToolResult(
+                        output=f"Performed {action}",
+                        error=None,
+                        base64_image=screenshot_result.base64_image
+                    )
+                except Exception as e:
+                    return ToolResult(output=None, error=str(e), base64_image=None)
 
         raise ToolError(f"Invalid action: {action}")
 
@@ -223,11 +216,13 @@ class ComputerTool(BaseAnthropicTool):
         output_dir.mkdir(parents=True, exist_ok=True)
         path = output_dir / f"screenshot_{uuid4().hex}.png"
 
-        # Use macOS native screencapture
-        screenshot_cmd = f"screencapture -x {path}"
-        result = await self.shell(screenshot_cmd, take_screenshot=False)
+        # Use our async screenshot function
+        success = await take_screenshot(str(path))
+        if not success:
+            raise ToolError(f"Failed to take screenshot")
 
         if self._scaling_enabled:
+            # Scale the screenshot if needed
             x, y = SCALE_DESTINATION['width'], SCALE_DESTINATION['height']
             await self.shell(
                 f"sips -z {y} {x} {path}",  # sips is macOS native image processor
@@ -235,10 +230,10 @@ class ComputerTool(BaseAnthropicTool):
             )
 
         if path.exists():
-            return result.replace(
-                base64_image=base64.b64encode(path.read_bytes()).decode()
-            )
-        raise ToolError(f"Failed to take screenshot: {result.error}")
+            img_data = base64.b64encode(path.read_bytes()).decode()
+            return ToolResult(output=None, error=None, base64_image=img_data)
+        
+        raise ToolError(f"Failed to read screenshot from {path}")
 
     async def shell(self, command: str, take_screenshot=False) -> ToolResult:
         """Run a shell command and return the output, error, and optionally a screenshot."""
