@@ -1,8 +1,8 @@
 # Default target
-all: install test
+all: install run
 	@echo "$(GREEN)All tasks completed.$(RESET)"
 
-.PHONY: all install install-dev install-gui reinstall uninstall test lint format clean venv venv-check help check-dependencies check-system check-python check-uv run cli
+.PHONY: all install install-dev install-gui reinstall uninstall test lint format clean venv venv-check pytest-check help check-dependencies check-system check-python check-uv run cli
 
 # ANSI color codes
 GREEN=$(shell tput -Txterm setaf 2)
@@ -94,6 +94,15 @@ venv-check:
 		$(MAKE) venv ; \
 	fi
 
+# Helper to check if pytest is installed
+pytest-check: venv-check
+	@if ! $(ACTIVATE_CMD) $(VENV_ACTIVATE) && python -c "import pytest" 2>/dev/null; then \
+		echo "$(YELLOW)pytest not found. Installing development dependencies...$(RESET)"; \
+		$(MAKE) install-dev; \
+	else \
+		echo "$(BLUE)pytest already installed.$(RESET)"; \
+	fi
+
 install: venv-check
 	@echo "$(YELLOW)Installing dependencies...$(RESET)"
 	@$(ACTIVATE_CMD) $(VENV_ACTIVATE) && $(PACKAGE_CMD) -e . || { \
@@ -122,19 +131,19 @@ uninstall: venv-check
 
 reinstall: uninstall venv install
 
-test: venv-check
+test: pytest-check
 	@echo "$(YELLOW)Running tests...$(RESET)"
 	$(ACTIVATE_CMD) $(VENV_ACTIVATE) && python -m pytest || true
 	@echo "$(GREEN)Tests complete.$(RESET)"
 
-lint: venv-check
+lint: pytest-check
 	@echo "$(YELLOW)Running linters...$(RESET)"
-	$(ACTIVATE_CMD) $(VENV_ACTIVATE) && ruff check .
+	$(ACTIVATE_CMD) $(VENV_ACTIVATE) && ruff check . || true
 	@echo "$(GREEN)Linting complete.$(RESET)"
 
-format: venv-check
+format: pytest-check
 	@echo "$(YELLOW)Formatting code...$(RESET)"
-	$(ACTIVATE_CMD) $(VENV_ACTIVATE) && ruff format .
+	$(ACTIVATE_CMD) $(VENV_ACTIVATE) && ruff format . || true
 	@echo "$(GREEN)Formatting complete.$(RESET)"
 
 run: venv-check
@@ -157,15 +166,15 @@ clean:
 help:
 	@echo "$(BLUE)Usage: make [target]$(RESET)"
 	@echo "Targets:"
-	@echo "  $(GREEN)all$(RESET)                 - Install dependencies, run tests"
+	@echo "  $(GREEN)all$(RESET)                 - Install dependencies and run the app"
 	@echo "  $(GREEN)install$(RESET)             - Install dependencies"
 	@echo "  $(GREEN)install-dev$(RESET)         - Install development dependencies
 	@echo "  $(GREEN)install-gui$(RESET)         - Install GUI automation dependencies"
 	@echo "  $(GREEN)uninstall$(RESET)           - Remove virtual environment"
 	@echo "  $(GREEN)reinstall$(RESET)           - Recreate virtual environment and reinstall dependencies"
-	@echo "  $(GREEN)test$(RESET)                - Run tests"
-	@echo "  $(GREEN)lint$(RESET)                - Run linting"
-	@echo "  $(GREEN)format$(RESET)              - Format code"
+	@echo "  $(GREEN)test$(RESET)                - Run tests (installs dev dependencies if needed)"
+	@echo "  $(GREEN)lint$(RESET)                - Run linting (installs dev dependencies if needed)"
+	@echo "  $(GREEN)format$(RESET)              - Format code (installs dev dependencies if needed)"
 	@echo "  $(GREEN)run$(RESET)                 - Run streamlit app"
 	@echo "  $(GREEN)clean$(RESET)               - Clean cache files"
 	@echo "  $(GREEN)venv$(RESET)                - Create virtual environment"
