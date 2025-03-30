@@ -1,8 +1,5 @@
 # mac-use
 
-[Computer
-Use](https://github.com/anthropics/anthropic-quickstarts/blob/main/computer-use-demo/README.md) is a beta use which runs a Docker image with Ubuntu and controls it.
-
 This project allows you to control macOS natively, providing direct system control through native macOS commands and utilities.
 
 > [!CAUTION]
