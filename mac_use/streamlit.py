@@ -354,5 +354,9 @@ def _render_message(
             st.markdown(message)
 
 
-if __name__ == "__main__":
+def cli():
+    """CLI entry point for the application"""
     asyncio.run(main())
+
+if __name__ == "__main__":
+    cli()
