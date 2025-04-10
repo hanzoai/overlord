@@ -3,7 +3,7 @@
 AI Overlord, managing your disparate agents through local computer use. This project allows AI to control macOS natively, providing direct system control through native macOS commands and utilities.
 
 > [!CAUTION]
-> This comes with obvious risks. The Anthropic agent can control everything on your Mac. Please be careful.
+> This comes with obvious risks. Overlord can control everything on your Mac. Please be careful.
 
 ## Features
 
