@@ -27,8 +27,8 @@ AI Overlord, managing your disparate agents through local computer use. This pro
 1. Clone the repository and navigate to it:
 
 ```bash
-git clone https://github.com/hanzoai/mac-use.git
-cd mac-use
+git clone https://github.com/hanzoai/overlord.git
+cd overlord
 ```
 
 2. Create and activate a virtual environment:
