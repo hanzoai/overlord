@@ -14,7 +14,7 @@ RESET=$(shell tput -Txterm sgr0)
 # Variables
 PYTHON_VERSION = 3.13
 VENV_NAME ?= .venv
-PROJECT_NAME = mac-use
+PROJECT_NAME = overlord
 
 # Detect OS for proper path handling
 ifeq ($(OS),Windows_NT)
@@ -106,13 +106,13 @@ pytest-check: venv-check
 # Install tweening package from local repository
 install-tweening: venv-check
 	@echo "$(YELLOW)Installing hanzo-pytweening from local repository...$(RESET)"
-	cd ../tweening && $(ACTIVATE_CMD) /Users/z/work/hanzo/mac-use/$(VENV_ACTIVATE) && $(PACKAGE_CMD) -e .
+	cd ../tweening && $(ACTIVATE_CMD) /Users/z/work/hanzo/overlord/$(VENV_ACTIVATE) && $(PACKAGE_CMD) -e .
 	@echo "$(GREEN)hanzo-pytweening installed.$(RESET)"
 
 # Install autogui package from local repository
 install-autogui: venv-check install-tweening
 	@echo "$(YELLOW)Installing hanzo-autogui from local repository...$(RESET)"
-	cd ../autogui && $(ACTIVATE_CMD) /Users/z/work/hanzo/mac-use/$(VENV_ACTIVATE) && $(PACKAGE_CMD) -e .
+	cd ../autogui && $(ACTIVATE_CMD) /Users/z/work/hanzo/overlord/$(VENV_ACTIVATE) && $(PACKAGE_CMD) -e .
 	@echo "$(GREEN)hanzo-autogui installed.$(RESET)"
 
 install-all: venv-check install-autogui install
@@ -165,12 +165,12 @@ format: pytest-check
 
 run: venv-check
 	@echo "$(YELLOW)Running streamlit app...$(RESET)"
-	uv run mac_use/app.py
+	uv run overlord/app.py
 	@echo "$(GREEN)App stopped.$(RESET)"
 
 cli: venv-check
-	@echo "$(YELLOW)Running mac-use CLI...$(RESET)"
-	uv run mac_use/cli.py
+	@echo "$(YELLOW)Running overlord CLI...$(RESET)"
+	uv run overlord/cli.py
 	@echo "$(GREEN)CLI command completed.$(RESET)"
 
 clean:
@@ -210,7 +210,7 @@ help:
 	@echo "  $(GREEN)lint$(RESET)                - Run linting (installs dev dependencies if needed)"
 	@echo "  $(GREEN)format$(RESET)              - Format code (installs dev dependencies if needed)"
 	@echo "  $(GREEN)run$(RESET)                 - Run streamlit app"
-	@echo "  $(GREEN)cli$(RESET)                 - Run the mac-use CLI command"
+	@echo "  $(GREEN)cli$(RESET)                 - Run the overlord CLI command"
 	@echo "  $(GREEN)clean$(RESET)               - Clean cache files"
 	@echo "  $(GREEN)build-package$(RESET)       - Build Python package distribution"
 	@echo "  $(GREEN)publish$(RESET)             - Publish package to PyPI"
