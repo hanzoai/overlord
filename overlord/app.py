@@ -27,6 +27,7 @@ from loop import (
     sampling_loop,
 )
 from tools import ToolResult
+import platform
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -85,6 +86,8 @@ def setup_state():
         st.session_state.custom_system_prompt = load_from_storage("system_prompt") or ""
     if "hide_images" not in st.session_state:
         st.session_state.hide_images = False
+    if "use_metal_gpu" not in st.session_state:
+        st.session_state.use_metal_gpu = True
 
 
 def _reset_model():
@@ -99,7 +102,7 @@ async def main():
 
     st.markdown(STREAMLIT_STYLE, unsafe_allow_html=True)
 
-    st.title("Mac Use")
+    st.title("Overlord")
 
     with st.sidebar:
 
@@ -143,6 +146,26 @@ async def main():
             ),
         )
         st.checkbox("Hide screenshots", key="hide_images")
+
+        # Metal GPU acceleration setting
+        if platform.system() == "Darwin":
+            # Try to import Metal module to check if it's available
+            metal_available = False
+            try:
+                import Metal
+                metal_available = True
+            except ImportError:
+                metal_available = False
+
+            metal_checkbox = st.checkbox(
+                "Use Metal GPU acceleration",
+                key="use_metal_gpu",
+                disabled=not metal_available,
+                help="Enable Metal GPU acceleration for image processing (macOS only)"
+            )
+
+            if not metal_available and metal_checkbox:
+                st.info("Metal GPU acceleration is not available. Make sure PyObjC with Metal framework is installed.")
 
         if st.button("Reset", type="primary"):
             with st.spinner("Resetting..."):
@@ -210,6 +233,11 @@ async def main():
             return
 
         with st.spinner("Running Agent..."):
+            # Configure Metal GPU settings before running the agent
+            if platform.system() == "Darwin":
+                from tools.computer import ComputerTool
+                ComputerTool._use_metal = st.session_state.use_metal_gpu
+
             # run the agent sampling loop with the newest message
             st.session_state.messages = await sampling_loop(
                 system_prompt_suffix=st.session_state.custom_system_prompt,

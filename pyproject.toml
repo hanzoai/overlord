@@ -24,7 +24,10 @@ dependencies = [
     "watchdog>=5.0.3",
     # Modern alternatives to PyAutoGUI
     "mouse>=0.7.1",
-    "pynput>=1.7.6"
+    "pynput>=1.7.6",
+    # Metal GPU acceleration dependencies (macOS)
+    "numpy>=1.19.0",
+    "pillow>=9.0.0"
 ]
 
 [project.optional-dependencies]

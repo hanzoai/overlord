@@ -2,11 +2,21 @@ import asyncio
 import base64
 import os
 import shlex
-import keyboard
+import platform
 from enum import StrEnum
 from pathlib import Path
 from typing import Literal, TypedDict
 from uuid import uuid4
+
+# Try to import keyboard, but don't fail if it's not available
+try:
+    import keyboard
+    HAS_KEYBOARD = True
+except ImportError:
+    HAS_KEYBOARD = False
+
+# Import Metal utilities for GPU acceleration
+from .metal_utils import accelerate_screenshot, can_use_metal
 
 from anthropic.types.beta import BetaToolComputerUse20241022Param
 
@@ -71,6 +81,8 @@ class ComputerTool(BaseAnthropicTool):
     A tool that allows the agent to interact with the screen, keyboard, and mouse of the current macOS computer.
     The tool parameters are defined by Anthropic and are not editable.
     Requires cliclick to be installed: brew install cliclick
+    
+    Metal GPU acceleration is automatically used when available for image processing operations.
     """
 
     name: Literal["computer"] = "computer"
@@ -81,6 +93,7 @@ class ComputerTool(BaseAnthropicTool):
 
     _screenshot_delay = 1.0  # macOS is generally faster than X11
     _scaling_enabled = True
+    _use_metal = True  # Enable Metal GPU acceleration when available
 
     @property
     def options(self) -> ComputerToolOptions:
@@ -222,12 +235,28 @@ class ComputerTool(BaseAnthropicTool):
             raise ToolError(f"Failed to take screenshot")
 
         if self._scaling_enabled:
-            # Scale the screenshot if needed
+            # Scale the screenshot if needed using Metal acceleration if available
             x, y = SCALE_DESTINATION['width'], SCALE_DESTINATION['height']
-            await self.shell(
-                f"sips -z {y} {x} {path}",  # sips is macOS native image processor
-                take_screenshot=False
-            )
+            
+            if self._use_metal and platform.system() == "Darwin":
+                # Use Metal-accelerated image processing
+                metal_success = accelerate_screenshot(
+                    str(path), str(path), 
+                    max_width=x, max_height=y
+                )
+                
+                if not metal_success:
+                    # Fall back to sips if Metal acceleration failed
+                    await self.shell(
+                        f"sips -z {y} {x} {path}",  # sips is macOS native image processor
+                        take_screenshot=False
+                    )
+            else:
+                # Use traditional sips command
+                await self.shell(
+                    f"sips -z {y} {x} {path}",  # sips is macOS native image processor
+                    take_screenshot=False
+                )
 
         if path.exists():
             img_data = base64.b64encode(path.read_bytes()).decode()
