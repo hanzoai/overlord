@@ -97,12 +97,12 @@ format: install-dev
 # Run commands
 run: install
 	@echo "$(YELLOW)Running streamlit app...$(RESET)"
-	@$(call run_in_venv, $(UV) run overlord/app.py)
+	@$(call run_in_venv, PYTHONPATH=$(shell pwd) $(UV) run --no-deps overlord/app.py)
 	@echo "$(GREEN)App stopped.$(RESET)"
 
 cli: install
 	@echo "$(YELLOW)Running overlord CLI...$(RESET)"
-	@$(call run_in_venv, $(UV) run overlord/cli.py)
+	@$(call run_in_venv, PYTHONPATH=$(shell pwd) $(UV) run --no-deps overlord/cli.py)
 	@echo "$(GREEN)CLI command completed.$(RESET)"
 
 # Clean up
