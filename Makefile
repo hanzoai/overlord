@@ -1,8 +1,4 @@
-# Default target
-all: install-all test run
-	@echo "$(GREEN)All tasks completed.$(RESET)"
-
-.PHONY: all install install-all install-dev install-test reinstall uninstall test lint format clean venv venv-check pytest-check help check-dependencies check-system check-python check-uv run cli install-autogui install-tweening build-package publish
+.PHONY: all install install-dev install-test install-publish reinstall uninstall test lint format clean venv run cli build publish patch minor major bump-patch bump-minor bump-major tag-version
 
 # ANSI color codes
 GREEN=$(shell tput -Txterm setaf 2)
@@ -19,203 +15,183 @@ PROJECT_NAME = overlord
 # Detect OS for proper path handling
 ifeq ($(OS),Windows_NT)
 	VENV_ACTIVATE = $(VENV_NAME)\Scripts\activate
-	VENV_PYTHON = $(VENV_NAME)\Scripts\python.exe
 	RM_CMD = rmdir /s /q
-	CP = copy
 	SEP = \\
-	ACTIVATE_CMD = call
 else
 	VENV_ACTIVATE = $(VENV_NAME)/bin/activate
-	VENV_PYTHON = $(VENV_NAME)/bin/python
 	RM_CMD = rm -rf
-	CP = cp
 	SEP = /
-	ACTIVATE_CMD = .
 endif
 
-# Python interpreter and package manager
-PYTHON = python
+# UV package manager
+UV = uv
 
-# Check if uv is available, otherwise use plain pip
-UV := $(shell command -v uv 2> /dev/null)
-ifeq ($(UV),)
-	PACKAGE_CMD = pip install
-	VENV_CMD = $(PYTHON) -m venv
-else
-	PACKAGE_CMD = uv pip install
-	VENV_CMD = uv venv --python=python$(PYTHON_VERSION)
-endif
+# Project paths
+SRC_DIR = overlord
+TEST_DIR = tests
+DIST_DIR = dist
 
-# System & dependency checks
-check-uv:
-	@echo "$(YELLOW)Checking uv installation...$(RESET)"
-	@if ! command -v uv > /dev/null; then \
-		echo "$(YELLOW)uv not found. Installing uv...$(RESET)"; \
-		pip install uv || { echo "$(RED)Failed to install uv. Please install it manually.$(RESET)"; exit 1; }; \
-		echo "$(BLUE)uv installed successfully.$(RESET)"; \
-	else \
-		echo "$(BLUE)uv is installed.$(RESET)"; \
-	fi
+# Default target
+all: install test run
+	@echo "$(GREEN)All tasks completed.$(RESET)"
 
-check-python:
-	@echo "$(YELLOW)Checking Python $(PYTHON_VERSION) installation...$(RESET)"
-	@if ! command -v python$(PYTHON_VERSION) > /dev/null; then \
-		echo "$(YELLOW)Python $(PYTHON_VERSION) not found. Installing it using uv...$(RESET)"; \
-		uv python install $(PYTHON_VERSION) || { echo "$(RED)Failed to install Python $(PYTHON_VERSION).$(RESET)"; exit 1; }; \
-		echo "$(BLUE)Python $(PYTHON_VERSION) installed.$(RESET)"; \
-	else \
-		echo "$(BLUE)$$(python$(PYTHON_VERSION) --version) is installed.$(RESET)"; \
-	fi
-
-check-system:
-	@echo "$(YELLOW)Checking system...$(RESET)"
-	@if [ "$$(uname)" = "Darwin" ]; then \
-		echo "$(BLUE)macOS detected.$(RESET)"; \
-	elif [ "$$(uname)" = "Linux" ]; then \
-		echo "$(BLUE)Linux detected.$(RESET)"; \
-	else \
-		echo "$(RED)Unsupported system detected. Please use macOS or Linux.$(RESET)"; \
-		exit 1; \
-	fi
-
-check-dependencies: check-system check-uv check-python
-	@echo "$(GREEN)Dependencies checked successfully.$(RESET)"
+# Run commands in virtual environment
+define run_in_venv
+	. $(VENV_ACTIVATE) && $(1)
+endef
 
 # Create virtual environment
-venv: check-python
+venv:
 	@echo "$(YELLOW)Creating virtual environment...$(RESET)"
-	@$(VENV_CMD) $(VENV_NAME)
-	@echo "Virtual environment created. Run 'source $(VENV_ACTIVATE)' to activate it."
+	@$(UV) venv $(VENV_NAME) --python=$(PYTHON_VERSION)
+	@echo "$(GREEN)Virtual environment created. Run 'source $(VENV_ACTIVATE)' to activate it.$(RESET)"
 
-# Helper to check for virtual environment
-venv-check:
-	@if [ ! -f $(VENV_ACTIVATE) ]; then \
-		echo "$(YELLOW)Virtual environment not found. Creating one...$(RESET)" ; \
-		$(MAKE) venv ; \
-	fi
-
-# Helper to check if pytest is installed
-pytest-check: venv-check
-	@if ! $(ACTIVATE_CMD) $(VENV_ACTIVATE) && python -c "import pytest" 2>/dev/null; then \
-		echo "$(YELLOW)pytest not found. Installing development dependencies...$(RESET)"; \
-		$(MAKE) install-dev; \
-	else \
-		echo "$(BLUE)pytest already installed.$(RESET)"; \
-	fi
-
-# Install tweening package from local repository
-install-tweening: venv-check
-	@echo "$(YELLOW)Installing hanzo-pytweening from local repository...$(RESET)"
-	cd ../tweening && $(ACTIVATE_CMD) /Users/z/work/hanzo/overlord/$(VENV_ACTIVATE) && $(PACKAGE_CMD) -e .
-	@echo "$(GREEN)hanzo-pytweening installed.$(RESET)"
-
-# Install autogui package from local repository
-install-autogui: venv-check install-tweening
-	@echo "$(YELLOW)Installing hanzo-autogui from local repository...$(RESET)"
-	cd ../autogui && $(ACTIVATE_CMD) /Users/z/work/hanzo/overlord/$(VENV_ACTIVATE) && $(PACKAGE_CMD) -e .
-	@echo "$(GREEN)hanzo-autogui installed.$(RESET)"
-
-install-all: venv-check install-autogui install
-
-install: venv-check
-	@echo "$(YELLOW)Installing dependencies...$(RESET)"
-	@$(ACTIVATE_CMD) $(VENV_ACTIVATE) && $(PACKAGE_CMD) -e . || { \
-		echo "$(YELLOW)Installation with $(PACKAGE_CMD) failed. Trying with pip...$(RESET)"; \
-		$(ACTIVATE_CMD) $(VENV_ACTIVATE) && pip install -e .; \
-	}
+# Install package and dependencies
+install: venv
+	@echo "$(YELLOW)Installing package...$(RESET)"
+	@$(call run_in_venv, $(UV) pip install -e .)
 	@echo "$(GREEN)Installation complete.$(RESET)"
 
-install-dev: venv-check
+# Install development dependencies
+install-dev: venv
 	@echo "$(YELLOW)Installing development dependencies...$(RESET)"
-	@$(ACTIVATE_CMD) $(VENV_ACTIVATE) && $(PACKAGE_CMD) pytest ruff black mypy || { \
-		echo "$(YELLOW)Installation with $(PACKAGE_CMD) failed. Trying with pip...$(RESET)"; \
-		$(ACTIVATE_CMD) $(VENV_ACTIVATE) && pip install pytest ruff black mypy; \
-	}
+	@$(call run_in_venv, $(UV) pip install -e ".[dev]")
 	@echo "$(GREEN)Development dependencies installed.$(RESET)"
 
-install-test: venv-check install-autogui
+# Install test dependencies
+install-test: venv
 	@echo "$(YELLOW)Installing test dependencies...$(RESET)"
-	@$(ACTIVATE_CMD) $(VENV_ACTIVATE) && $(PACKAGE_CMD) -e ".[dev]" || { \
-		echo "$(YELLOW)Installation with $(PACKAGE_CMD) failed. Trying with pip...$(RESET)"; \
-		$(ACTIVATE_CMD) $(VENV_ACTIVATE) && pip install -e ".[dev]"; \
-	}
+	@$(call run_in_venv, $(UV) pip install -e ".[dev]")
 	@echo "$(GREEN)Test dependencies installed.$(RESET)"
 
-uninstall: venv-check
+# Install dependencies for publishing
+install-publish: venv
+	@echo "$(YELLOW)Installing publish dependencies...$(RESET)"
+	@$(call run_in_venv, $(UV) pip install build twine)
+	@echo "$(GREEN)Publish dependencies installed.$(RESET)"
+
+# Reinstall and uninstall
+uninstall:
 	@echo "$(YELLOW)Removing virtual environment...$(RESET)"
 	$(RM_CMD) $(VENV_NAME)
 	@echo "$(GREEN)Virtual environment removed.$(RESET)"
 
 reinstall: uninstall venv install
 
-test: pytest-check
+# Testing and code quality
+test: install-test
 	@echo "$(YELLOW)Running tests...$(RESET)"
-	$(ACTIVATE_CMD) $(VENV_ACTIVATE) && python -m pytest
+	@$(call run_in_venv, python -m pytest)
 	@echo "$(GREEN)Tests complete.$(RESET)"
 
-lint: pytest-check
+lint: install-dev
 	@echo "$(YELLOW)Running linters...$(RESET)"
-	$(ACTIVATE_CMD) $(VENV_ACTIVATE) && ruff check .
+	@$(call run_in_venv, ruff check .)
 	@echo "$(GREEN)Linting complete.$(RESET)"
 
-format: pytest-check
+format: install-dev
 	@echo "$(YELLOW)Formatting code...$(RESET)"
-	$(ACTIVATE_CMD) $(VENV_ACTIVATE) && ruff format .
+	@$(call run_in_venv, ruff format .)
 	@echo "$(GREEN)Formatting complete.$(RESET)"
 
-run: venv-check
+# Run commands
+run: install
 	@echo "$(YELLOW)Running streamlit app...$(RESET)"
-	uv run overlord/app.py
+	@$(call run_in_venv, $(UV) run overlord/app.py)
 	@echo "$(GREEN)App stopped.$(RESET)"
 
-cli: venv-check
+cli: install
 	@echo "$(YELLOW)Running overlord CLI...$(RESET)"
-	uv run overlord/cli.py
+	@$(call run_in_venv, $(UV) run overlord/cli.py)
 	@echo "$(GREEN)CLI command completed.$(RESET)"
 
+# Clean up
 clean:
 	@echo "$(YELLOW)Cleaning caches...$(RESET)"
-	$(RM_CMD) .pytest_cache htmlcov .coverage 2>/dev/null || true
+	$(RM_CMD) .pytest_cache htmlcov .coverage $(DIST_DIR) 2>/dev/null || true
 	find . -name "__pycache__" -type d -exec rm -rf {} +
 	@echo "$(GREEN)Caches cleaned.$(RESET)"
 
-# Build Python package distribution
-build-package: install-all test
-	@echo "$(YELLOW)Building package...$(RESET)"
-	$(ACTIVATE_CMD) $(VENV_ACTIVATE) && $(PACKAGE_CMD) build || $(ACTIVATE_CMD) $(VENV_ACTIVATE) && pip install build
-	$(ACTIVATE_CMD) $(VENV_ACTIVATE) && python -m build
-	@echo "$(GREEN)Package built. Distribution files are in 'dist/'$(RESET)"
+# Version management
+bump-patch:
+	@echo "$(YELLOW)Bumping patch version...$(RESET)"
+	@python -m scripts.bump_version patch
+	@echo "$(GREEN)Version bumped.$(RESET)"
 
-# Publish package to PyPI
-publish: build-package
-	@echo "$(YELLOW)Publishing package to PyPI...$(RESET)"
-	@read -p "Are you sure you want to publish to PyPI? [y/N] " answer && [[ $$answer == [yY] ]]
-	$(ACTIVATE_CMD) $(VENV_ACTIVATE) && $(PACKAGE_CMD) twine || $(ACTIVATE_CMD) $(VENV_ACTIVATE) && pip install twine
-	$(ACTIVATE_CMD) $(VENV_ACTIVATE) && twine upload dist/*
+bump-minor:
+	@echo "$(YELLOW)Bumping minor version...$(RESET)"
+	@python -m scripts.bump_version minor
+	@echo "$(GREEN)Version bumped.$(RESET)"
+
+bump-major:
+	@echo "$(YELLOW)Bumping major version...$(RESET)"
+	@python -m scripts.bump_version major
+	@echo "$(GREEN)Version bumped.$(RESET)"
+
+# Git tagging
+tag-version:
+	@VERSION=$$(grep 'version =' pyproject.toml | sed 's/version = "\(.*\)"/\1/'); \
+	echo "$(YELLOW)Creating git tag v$$VERSION...$(RESET)"; \
+	git tag -a "v$$VERSION" -m "Release v$$VERSION"; \
+	echo "$(YELLOW)Pushing changes and tags to remote...$(RESET)"; \
+	git push origin main; \
+	git push origin "v$$VERSION"; \
+	echo "$(GREEN)Version tagged and pushed.$(RESET)"
+
+# Build and publish
+build: clean install-publish
+	@echo "$(YELLOW)Building package...$(RESET)"
+	@$(call run_in_venv, python -m build)
+	@echo "$(GREEN)Package built. Distribution files are in '$(DIST_DIR)/'$(RESET)"
+
+# Publish to PyPI
+_publish:
+ifdef PYPI_TOKEN
+	@echo "$(YELLOW)Publishing to PyPI with token...$(RESET)"
+	@$(call run_in_venv, TWINE_USERNAME=__token__ TWINE_PASSWORD=$(PYPI_TOKEN) python -m twine upload $(DIST_DIR)/*)
+else
+	@echo "$(YELLOW)Publishing to PyPI...$(RESET)"
+	@$(call run_in_venv, python -m twine upload $(DIST_DIR)/*)
+endif
 	@echo "$(GREEN)Package published to PyPI.$(RESET)"
+
+# Combined version bump, build, publish and tag targets
+publish: build _publish tag-version
+
+patch: bump-patch build _publish tag-version
+
+minor: bump-minor build _publish tag-version
+
+major: bump-major build _publish tag-version
 
 # Help target
 help:
-	@echo "$(BLUE)Usage: make [target]$(RESET)"
-	@echo "Targets:"
-	@echo "  $(GREEN)all$(RESET)                 - Install dependencies, run tests, and start the app"
-	@echo "  $(GREEN)install$(RESET)             - Install dependencies (including local hanzo-autogui and hanzo-pytweening)"
-	@echo "  $(GREEN)install-autogui$(RESET)     - Install hanzo-autogui from local repository"
-	@echo "  $(GREEN)install-tweening$(RESET)    - Install hanzo-pytweening from local repository"
-	@echo "  $(GREEN)install-dev$(RESET)         - Install development dependencies"
-	@echo "  $(GREEN)install-test$(RESET)        - Install test dependencies"
-	@echo "  $(GREEN)uninstall$(RESET)           - Remove virtual environment"
-	@echo "  $(GREEN)reinstall$(RESET)           - Recreate virtual environment and reinstall dependencies"
-	@echo "  $(GREEN)test$(RESET)                - Run tests (installs dev dependencies if needed)"
-	@echo "  $(GREEN)lint$(RESET)                - Run linting (installs dev dependencies if needed)"
-	@echo "  $(GREEN)format$(RESET)              - Format code (installs dev dependencies if needed)"
-	@echo "  $(GREEN)run$(RESET)                 - Run streamlit app"
-	@echo "  $(GREEN)cli$(RESET)                 - Run the overlord CLI command"
-	@echo "  $(GREEN)clean$(RESET)               - Clean cache files"
-	@echo "  $(GREEN)build-package$(RESET)       - Build Python package distribution"
-	@echo "  $(GREEN)publish$(RESET)             - Publish package to PyPI"
-	@echo "  $(GREEN)venv$(RESET)                - Create virtual environment"
-	@echo "  $(GREEN)check-dependencies$(RESET)  - Check system dependencies"
-	@echo "  $(GREEN)check-python$(RESET)        - Check Python installation"
-	@echo "  $(GREEN)check-uv$(RESET)            - Check uv installation"
-	@echo "  $(GREEN)help$(RESET)                - Show this help message"
+	@echo "$(BLUE)Hanzo Overlord Makefile$(RESET)"
+	@echo "Usage: make [target]"
+	@echo ""
+	@echo "Development Targets:"
+	@echo "  $(GREEN)all$(RESET)              - Install dependencies, run tests, and start the app"
+	@echo "  $(GREEN)install$(RESET)          - Install package in development mode"
+	@echo "  $(GREEN)install-dev$(RESET)      - Install development dependencies"
+	@echo "  $(GREEN)install-test$(RESET)     - Install test dependencies"
+	@echo "  $(GREEN)reinstall$(RESET)        - Recreate virtual environment and reinstall dependencies"
+	@echo "  $(GREEN)uninstall$(RESET)        - Remove virtual environment"
+	@echo "  $(GREEN)test$(RESET)             - Run tests"
+	@echo "  $(GREEN)lint$(RESET)             - Run linting"
+	@echo "  $(GREEN)format$(RESET)           - Format code"
+	@echo ""
+	@echo "Run Targets:"
+	@echo "  $(GREEN)run$(RESET)              - Run streamlit app"
+	@echo "  $(GREEN)cli$(RESET)              - Run the overlord CLI"
+	@echo ""
+	@echo "Build & Publish Targets:"
+	@echo "  $(GREEN)build$(RESET)            - Build Python package distribution"
+	@echo "  $(GREEN)publish$(RESET)          - Build, publish to PyPI, and tag version"
+	@echo "  $(GREEN)patch$(RESET)            - Bump patch version, build, publish, and tag"
+	@echo "  $(GREEN)minor$(RESET)            - Bump minor version, build, publish, and tag"
+	@echo "  $(GREEN)major$(RESET)            - Bump major version, build, publish, and tag"
+	@echo ""
+	@echo "Utility Targets:"
+	@echo "  $(GREEN)venv$(RESET)             - Create virtual environment"
+	@echo "  $(GREEN)clean$(RESET)            - Clean cache files"
+	@echo "  $(GREEN)help$(RESET)             - Show this help message"

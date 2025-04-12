@@ -257,6 +257,50 @@ wheels = [
 ]
 
 [[package]]
+name = "hanzo-overlord"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "anthropic", extra = ["bedrock", "vertex"] },
+    { name = "boto3" },
+    { name = "google-auth" },
+    { name = "jsonschema" },
+    { name = "keyboard" },
+    { name = "mouse" },
+    { name = "pynput" },
+    { name = "python-dotenv" },
+    { name = "streamlit" },
+    { name = "watchdog" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "black" },
+    { name = "mypy" },
+    { name = "pytest" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "anthropic", extras = ["bedrock", "vertex"], specifier = ">=0.37.1" },
+    { name = "black", marker = "extra == 'dev'", specifier = ">=23.0.0" },
+    { name = "boto3", specifier = ">=1.28.57" },
+    { name = "google-auth", specifier = ">=2.0.0" },
+    { name = "jsonschema", specifier = ">=4.0.0" },
+    { name = "keyboard", specifier = ">=0.13.5" },
+    { name = "mouse", specifier = ">=0.7.1" },
+    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.0.0" },
+    { name = "pynput", specifier = ">=1.7.6" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0.0" },
+    { name = "python-dotenv", specifier = ">=1.0.1" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
+    { name = "streamlit", specifier = ">=1.43.0" },
+    { name = "watchdog", specifier = ">=5.0.3" },
+]
+provides-extras = ["dev"]
+
+[[package]]
 name = "httpcore"
 version = "1.0.7"
 source = { registry = "https://pypi.org/simple" }
@@ -384,50 +428,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/79/75/c969f2258e908c39a
 wheels = [
     { url = "https://files.pythonhosted.org/packages/55/88/287159903c5b3fc6d47b651c7ab65a54dcf9c9916de546188a7f62870d6d/keyboard-0.13.5-py3-none-any.whl", hash = "sha256:8e9c2422f1217e0bd84489b9ecd361027cc78415828f4fe4f88dd4acd587947b", size = 58098 },
 ]
-
-[[package]]
-name = "overlord"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "anthropic", extra = ["bedrock", "vertex"] },
-    { name = "boto3" },
-    { name = "google-auth" },
-    { name = "jsonschema" },
-    { name = "keyboard" },
-    { name = "mouse" },
-    { name = "pynput" },
-    { name = "python-dotenv" },
-    { name = "streamlit" },
-    { name = "watchdog" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "black" },
-    { name = "mypy" },
-    { name = "pytest" },
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "anthropic", extras = ["bedrock", "vertex"], specifier = ">=0.37.1" },
-    { name = "black", marker = "extra == 'dev'", specifier = ">=23.0.0" },
-    { name = "boto3", specifier = ">=1.28.57" },
-    { name = "google-auth", specifier = ">=2.0.0" },
-    { name = "jsonschema", specifier = ">=4.0.0" },
-    { name = "keyboard", specifier = ">=0.13.5" },
-    { name = "mouse", specifier = ">=0.7.1" },
-    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.0.0" },
-    { name = "pynput", specifier = ">=1.7.6" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0.0" },
-    { name = "python-dotenv", specifier = ">=1.0.1" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
-    { name = "streamlit", specifier = ">=1.43.0" },
-    { name = "watchdog", specifier = ">=5.0.3" },
-]
-provides-extras = ["dev"]
 
 [[package]]
 name = "markupsafe"
