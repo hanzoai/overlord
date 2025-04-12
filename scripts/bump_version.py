@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """Version bumping script for hanzo-overlord.
 
 This script bumps the version in pyproject.toml and then updates
@@ -12,7 +13,6 @@ import argparse
 import os
 import re
 import sys
-from pathlib import Path
 
 
 def read_pyproject_version(path):
@@ -172,7 +172,7 @@ def main():
         
         # Calculate new version
         new_version = bump_version(current_version, args.bump_type)
-        print("Bumping version: {0} → {1}".format(current_version, new_version))
+        print("Bumping version: {0} -> {1}".format(current_version, new_version))
         
         # Update pyproject.toml
         write_pyproject_version(pyproject_path, new_version)
@@ -187,7 +187,7 @@ def main():
         
         return 0
     except Exception as e:
-        print("Error: {0}".format(str(e)), file=sys.stderr)
+        sys.stderr.write("Error: {0}\n".format(str(e)))
         return 1
 
 

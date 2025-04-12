@@ -113,19 +113,19 @@ clean:
 	@echo "$(GREEN)Caches cleaned.$(RESET)"
 
 # Version management
-bump-patch:
+bump-patch: install
 	@echo "$(YELLOW)Bumping patch version...$(RESET)"
-	@python -m scripts.bump_version patch
+	@$(call run_in_venv, python scripts/bump_version.py patch)
 	@echo "$(GREEN)Version bumped.$(RESET)"
 
-bump-minor:
+bump-minor: install
 	@echo "$(YELLOW)Bumping minor version...$(RESET)"
-	@python -m scripts.bump_version minor
+	@$(call run_in_venv, python scripts/bump_version.py minor)
 	@echo "$(GREEN)Version bumped.$(RESET)"
 
-bump-major:
+bump-major: install
 	@echo "$(YELLOW)Bumping major version...$(RESET)"
-	@python -m scripts.bump_version major
+	@$(call run_in_venv, python scripts/bump_version.py major)
 	@echo "$(GREEN)Version bumped.$(RESET)"
 
 # Git tagging

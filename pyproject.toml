@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hanzo-overlord"
-version = "0.1.0"
+version = "0.1.3"
 description = "Mac automation and streamlit interface tools"
 authors = [
     {name = "Hanzo Team"}
