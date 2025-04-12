@@ -9,6 +9,14 @@ Hanzo Overlord is a local AI project designed to drive local computer interface,
 ```
 overlord/
   tools/           # Automation tools
+    __init__.py
+    base.py        # Base classes for tools
+    bash.py        # Bash command execution
+    collection.py  # Tool collection management
+    computer.py    # Computer interaction (mouse, keyboard, screenshots)
+    edit.py        # Text editing
+    async_gui.py   # Asynchronous GUI automation utilities
+    run.py         # Command execution utilities
   __init__.py      # Package version and metadata
   app.py           # Streamlit application
   install_dependencies.py  # Dependency installer
@@ -17,6 +25,8 @@ tests/
   test_basic.py    # Basic tests
 scripts/
   bump_version.py  # Version management script
+  run_app.py       # Wrapper for running the Streamlit app safely
+  run_cli.py       # Wrapper for running the CLI safely
 ```
 
 ## Dependencies
@@ -26,8 +36,19 @@ The project has the following key dependencies:
 - Streamlit for the user interface
 - Anthropic (with AWS Bedrock and Google Vertex support)
 - Various input control libraries (keyboard, mouse, pynput)
+- macOS command-line utilities (cliclick, screencapture, sips) for GUI automation
 
-All dependencies are specified in the pyproject.toml file.
+All primary dependencies are specified in the pyproject.toml file.
+
+### macOS Specific Dependencies
+
+This project requires some macOS-specific command-line tools:
+
+- `cliclick`: For mouse and keyboard automation
+- `screencapture`: For taking screenshots (built into macOS)
+- `sips`: For image processing (built into macOS)
+
+The application will attempt to install `cliclick` via Homebrew if it's not found.
 
 ## Build System
 
