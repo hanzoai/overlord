@@ -1,3 +1,5 @@
+<p align="center"><img src=".github/hero.svg" alt="overlord" width="880"></p>
+
 # overlord
 
 AI Overlord, managing your disparate agents through local computer use. This project allows AI to control macOS natively, providing direct system control through native macOS commands and utilities.
