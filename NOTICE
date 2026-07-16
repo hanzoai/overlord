@@ -1,0 +1,12 @@
+overlord
+Copyright (c) 2025 Hanzo AI, Inc.
+
+Portions of this software are derived from claude-quickstarts (the
+computer-use-demo), adapted for native macOS.
+
+  Project:   claude-quickstarts
+  URL:       https://github.com/anthropics/claude-quickstarts
+  License:   MIT
+  Copyright: Copyright (c) 2023 Anthropic
+
+The upstream MIT license terms are retained in LICENSE.
