@@ -2,7 +2,6 @@
 
 # overlord
 
-Forked from [anthropics/claude-quickstarts](https://github.com/anthropics/claude-quickstarts) (MIT).
 
 AI Overlord, managing your disparate agents through local computer use. This project allows AI to control macOS natively, providing direct system control through native macOS commands and utilities.
 
