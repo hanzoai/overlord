@@ -2,6 +2,8 @@
 
 # overlord
 
+[![Open in Hanzo](https://hanzo.app/badges/open-in-hanzo.svg)](https://hanzo.app/dev/open?repo=github.com/hanzoai/overlord&ref=main&action=open) [![Edit with Hanzo](https://hanzo.app/badges/edit-with-hanzo.svg)](https://hanzo.app/dev/open?repo=github.com/hanzoai/overlord&ref=main&action=edit) [![Deploy with Hanzo](https://hanzo.app/badges/deploy-with-hanzo.svg)](https://hanzo.app/dev/open?repo=github.com/hanzoai/overlord&ref=main&action=deploy)
+
 
 AI Overlord, managing your disparate agents through local computer use. This project allows AI to control macOS natively, providing direct system control through native macOS commands and utilities.
 
